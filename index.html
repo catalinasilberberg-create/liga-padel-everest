@@ -93,6 +93,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="nav-btn active" id="jnav-inicio" onclick="jTab('inicio')"><span class="nav-icon">⌂</span>Inicio</button>
     <button class="nav-btn" id="jnav-partido" onclick="jTab('partido')"><span class="nav-icon">🎾</span>Mi partido</button>
     <button class="nav-btn" id="jnav-ranking" onclick="jTab('ranking')"><span class="nav-icon">📊</span>Tabla</button>
+    <button class="nav-btn" id="jnav-fixture" onclick="jTab('fixture')"><span class="nav-icon">📅</span>Fixture</button>
     <button class="nav-btn" id="jnav-historial" onclick="jTab('historial')"><span class="nav-icon">📋</span>Historial</button>
   </nav>
 </div>
@@ -107,6 +108,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="nav-btn active" id="anav-resultados" onclick="aTab('resultados')"><span class="nav-icon">🎾</span>Resultados</button>
     <button class="nav-btn" id="anav-tabla" onclick="aTab('tabla')"><span class="nav-icon">📊</span>Tabla</button>
     <button class="nav-btn" id="anav-parejas" onclick="aTab('parejas')"><span class="nav-icon">👥</span>Parejas</button>
+    <button class="nav-btn" id="anav-fixture" onclick="aTab('fixture')"><span class="nav-icon">📅</span>Fixture</button>
   </nav>
 </div>
 
@@ -118,7 +120,7 @@ const ADMIN_PHONE = '56987689971';
 const CATS = ['PRINCIPIANTE','CATEGORÍA D','CATEGORÍA C -','CATEGORÍA C+'];
 
 let user = null;
-let jData = { partido: null, historial: [], ranking: [], tab: 'inicio' };
+let jData = { partido: null, historial: [], ranking: [], fixture: [], tab: 'inicio' };
 let aData = { pendientes: [], aprobados: [], ranking: {}, tab: 'resultados', catSel: 'PRINCIPIANTE', parejas: [] };
 
 function show(id) {
@@ -201,6 +203,19 @@ function jTab(tab) {
   jData.tab = tab;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('jnav-' + tab).classList.add('active');
+  // Fixture completo de su categoria
+  const { data: todosPartidos } = await sb.from('partidos')
+    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
+    .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
+    .order('fecha_id', { ascending: true });
+
+  if (todosPartidos) {
+    const { data: todosRes } = await sb.from('resultados').select('partido_id, set1_p1, set1_p2, set2_p1, set2_p2, tb_p1, tb_p2, puntos_p1, puntos_p2, aprobado');
+    const resMap = {};
+    (todosRes || []).forEach(r => { if (r.aprobado) resMap[r.partido_id] = r; });
+    jData.fixture = todosPartidos.map(p => ({ ...p, resultado: resMap[p.id] || null }));
+  }
+
   renderJugadora();
 }
 
@@ -279,6 +294,48 @@ function renderJugadora() {
       </div>`;
     });
     html += '</div></div>';
+    el.innerHTML = html;
+  }
+
+
+  else if (tab === 'fixture') {
+    const { fixture } = jData;
+    let html = '<div class="section"><p class="stitle">Mi fixture completo</p>';
+    
+    if (!fixture || !fixture.length) {
+      html += '<div class="card" style="text-align:center;padding:1.5rem;color:#999;font-size:14px">No hay fixture cargado</div>';
+    } else {
+      fixture.forEach(p => {
+        const r = p.resultado;
+        const esP1 = p.pareja1_id === user.pareja_id;
+        const rival = esP1 ? p.pareja2?.nombre : p.pareja1?.nombre;
+        const lugar = p.lugar === 'PLT' ? 'Los Trapenses' : p.lugar === 'Everest' ? 'Club Everest' : p.lugar;
+        const sets = r ? `${r.set1_p1}-${r.set1_p2} / ${r.set2_p1}-${r.set2_p2}${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}` : null;
+        const miPts = r ? (esP1 ? r.puntos_p1 : r.puntos_p2) : null;
+        const gane = miPts === 3;
+        const empate = miPts === 2 || miPts === 1;
+        
+        let borderColor = '#e0e0dc';
+        if (r) borderColor = gane ? '#1D9E75' : empate ? '#BA7517' : '#E24B4A';
+        
+        html += \`<div class="card" style="padding:0.875rem 1rem;border-left:3px solid \${borderColor};margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1D9E75;margin-bottom:3px">\${esc(p.fecha?.nombre)}</div>
+              <div style="font-size:13px;font-weight:500">vs \${esc(rival)}</div>
+              <div style="font-size:11px;color:#999;margin-top:2px">\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · Cancha '+esc(p.cancha) : ''}</div>
+            </div>
+            <div style="text-align:right">
+              \${r ? \`<div style="font-size:12px;color:#666">\${sets}</div>
+              <span class="badge \${gane ? 'badge-v' : empate ? 'badge-a' : 'badge-r'}" style="margin-top:4px;display:inline-block">
+                \${gane ? 'Victoria' : empate ? 'Empate' : 'Derrota'}
+              </span>\` : '<span class="badge badge-g">Pendiente</span>'}
+            </div>
+          </div>
+        </div>\`;
+      });
+    }
+    html += '</div>';
     el.innerHTML = html;
   }
 
@@ -469,6 +526,48 @@ function renderAdmin() {
         html += `<div class="rank-row"><span class="rank-num">${p.pos}</span><span class="rank-name">${esc(p.nombre)}</span><span class="rank-diff">${p.diff > 0 ? '+' : ''}${p.diff}</span><span class="rank-pts">${p.pts}</span></div>`;
       });
       html += '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+
+  else if (tab === 'fixture') {
+    const { data: todasFechas } = await (async () => {
+      const r = await sb.from('fechas').select('*').order('id');
+      return r;
+    })();
+    const { data: todosP } = await sb.from('partidos')
+      .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*), resultado:resultados(*)')
+      .order('fecha_id').order('hora');
+    
+    let html = '<div class="section">';
+    const fechas = {};
+    (todosP || []).forEach(p => {
+      const fn = p.fecha?.nombre || 'Sin fecha';
+      if (!fechas[fn]) fechas[fn] = [];
+      const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
+      fechas[fn].push({ ...p, res: r });
+    });
+    
+    Object.entries(fechas).forEach(([fname, partidos]) => {
+      html += \`<p class="stitle">\${esc(fname)}</p>\`;
+      partidos.forEach(p => {
+        const r = p.res;
+        const sets = r ? \`\${r.set1_p1}-\${r.set1_p2} / \${r.set2_p1}-\${r.set2_p2}\${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}\` : null;
+        const lugar = p.lugar === 'PLT' ? 'Los Trapenses' : p.lugar === 'Everest' ? 'Club Everest' : p.lugar;
+        html += \`<div class="match-card">
+          <div class="match-teams">
+            <span class="match-team" style="font-size:12px">\${esc(p.pareja1?.nombre)}</span>
+            <span class="match-score-mid">\${sets || 'vs'}</span>
+            <span class="match-team" style="font-size:12px">\${esc(p.pareja2?.nombre)}</span>
+          </div>
+          <div class="match-meta">
+            <span>\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · C'+esc(p.cancha) : ''}</span>
+            <span class="badge \${r ? 'badge-v' : 'badge-g'}">\${r ? 'Jugado' : 'Pendiente'}</span>
+          </div>
+        </div>\`;
+      });
     });
     html += '</div>';
     el.innerHTML = html;
