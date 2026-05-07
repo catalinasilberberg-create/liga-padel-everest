@@ -399,8 +399,6 @@ async function loadAdmin() {
         diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
         diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
       });
-    }); 
-      diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
     });
     const grupos = {};
     catParejas.forEach(p => {
