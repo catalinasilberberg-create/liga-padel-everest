@@ -180,12 +180,14 @@ async function loadJugadora() {
     const pts = {}, diff = {};
     todasParejas.forEach(p => { pts[p.id] = 0; diff[p.id] = 0; });
     (todosP || []).forEach(p => {
-      const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
-      if (!r || !r.aprobado) return;
-      pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
-      pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
-      diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
-      diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
+      const rs = Array.isArray(p.resultado) ? p.resultado : (p.resultado ? [p.resultado] : []);
+      rs.forEach(r => {
+        if (!r || !r.aprobado) return;
+        pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
+        pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
+        diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
+        diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
+      });
     });
     jData.ranking = todasParejas
       .map(p => ({ ...p, pts: pts[p.id] || 0, diff: diff[p.id] || 0 }))
@@ -388,14 +390,16 @@ async function loadAdmin() {
     if (!ids.length) continue;
     const orStr = ids.map(id => `pareja1_id.eq.${id},pareja2_id.eq.${id}`).join(',');
     const { data: todosP } = await sb.from('partidos').select('*, resultado:resultados(*)').or(orStr);
-    const pts = {}, diff = {};
-    catParejas.forEach(p => { pts[p.id] = 0; diff[p.id] = 0; });
     (todosP || []).forEach(p => {
-      const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
-      if (!r || !r.aprobado) return;
-      pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
-      pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
-      diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
+      const rs = Array.isArray(p.resultado) ? p.resultado : (p.resultado ? [p.resultado] : []);
+      rs.forEach(r => {
+        if (!r || !r.aprobado) return;
+        pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
+        pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
+        diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
+        diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
+      });
+    }); 
       diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
     });
     const grupos = {};
