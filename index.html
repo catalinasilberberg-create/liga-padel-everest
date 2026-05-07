@@ -555,7 +555,9 @@ async function loadAdminFixture() {
     fechas[fn].push({...p,res:resMap[p.id]||null});
   });
   let html='<div class="section">';
-  html+='<img src="fixture.jpg" class="fixture-img" alt="Fixture" onclick="openLightbox('fixture.jpg')">';
+  html+='<p style="font-size:12px;color:#666;margin-bottom:8px">Toca cada imagen para ampliar</p>';
+  html+='<img src="fixture_f6.jpg" style="width:100%;border-radius:8px;margin-bottom:4px;cursor:zoom-in" onclick="openLightbox(\'fixture_f6.jpg\')">';
+  html+='<img src="fixture_f7.jpg" style="width:100%;border-radius:8px;margin-bottom:12px;cursor:zoom-in" onclick="openLightbox(\'fixture_f7.jpg\')">';
   html+='<p class="stitle">Todos los partidos</p>';
   Object.entries(fechas).forEach(([fname,partidos])=>{
     html+='<p class="stitle">'+esc(fname)+'</p>';
