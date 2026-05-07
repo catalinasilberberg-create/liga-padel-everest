@@ -209,18 +209,6 @@ function jTab(tab) {
   jData.tab = tab;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('jnav-' + tab).classList.add('active');
-  // Fixture completo
-  const { data: todosPartidos } = await sb.from('partidos')
-    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
-    .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
-    .order('fecha_id', { ascending: true });
-  if (todosPartidos) {
-    jData.fixture = todosPartidos.map(p => ({
-      ...p,
-      resultado: (resultados||[]).find(r => r.partido_id === p.id) || null
-    }));
-  }
-
   renderJugadora();
 }
 
