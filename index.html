@@ -160,41 +160,47 @@ document.getElementById('tel-input').addEventListener('keydown', e => e.key === 
 // ── JUGADORA ─────────────────────────────────────────────────────────────────
 async function loadJugadora() {
   document.getElementById('j-content').innerHTML = '<div class="loading">Cargando...</div>';
+  
+  // Query 1: mis partidos con resultados embebidos
   const { data: partidos } = await sb.from('partidos')
-    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
+    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*), resultado:resultados(*)')
     .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
     .order('fecha_id', { ascending: true });
 
-  const { data: resultados } = await sb.from('resultados').select('partido_id, aprobado, puntos_p1, puntos_p2, set1_p1, set1_p2, set2_p1, set2_p2, tb_p1, tb_p2').eq('aprobado', true);
   const resMap = {};
-  (resultados || []).forEach(r => resMap[r.partido_id] = r);
+  (partidos||[]).forEach(p => {
+    const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
+    if (r && r.aprobado) resMap[p.id] = r;
+  });
   const idsConRes = new Set(Object.keys(resMap).map(Number));
+  jData.partido = (partidos||[]).find(p => !idsConRes.has(p.id)) || null;
+  jData.historial = (partidos||[]).filter(p => idsConRes.has(p.id)).map(p => ({...p, resultado: resMap[p.id]})).reverse();
+  jData.fixture = (partidos||[]).map(p => ({...p, resultado: resMap[p.id]||null}));
 
-  jData.partido = (partidos || []).find(p => !idsConRes.has(p.id)) || null;
-  jData.historial = (partidos || []).filter(p => idsConRes.has(p.id)).map(p => ({ ...p, resultado: resMap[p.id] })).reverse();
-
-  // Ranking
+  // Query 2: ranking de su grupo
   const { data: todasParejas } = await sb.from('parejas').select('*').eq('categoria', user.categoria).eq('grupo', user.grupo);
   if (todasParejas && todasParejas.length) {
     const ids = todasParejas.map(p => p.id);
-    const { data: resGrupo } = await sb.from('resultados')
-      .select('*, partido:partidos(pareja1_id, pareja2_id)')
-      .eq('aprobado', true);
+    const orStr = ids.map(id => `pareja1_id.eq.${id},pareja2_id.eq.${id}`).join(',');
+    const { data: ptsData } = await sb.from('partidos')
+      .select('pareja1_id, pareja2_id, resultado:resultados(puntos_p1,puntos_p2,diff_p1,diff_p2,aprobado)')
+      .or(orStr);
     const pts = {}, diff = {};
-    todasParejas.forEach(p => { pts[p.id] = 0; diff[p.id] = 0; });
-    (resGrupo || []).forEach(r => {
-      const p = r.partido;
-      if (!p) return;
-      if (!ids.includes(p.pareja1_id) && !ids.includes(p.pareja2_id)) return;
-      pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
-      pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
-      diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
-      diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
+    todasParejas.forEach(p => { pts[p.id]=0; diff[p.id]=0; });
+    (ptsData||[]).forEach(p => {
+      const rs = Array.isArray(p.resultado) ? p.resultado : (p.resultado ? [p.resultado] : []);
+      rs.forEach(r => {
+        if (!r || !r.aprobado) return;
+        pts[p.pareja1_id] = (pts[p.pareja1_id]||0) + (r.puntos_p1||0);
+        pts[p.pareja2_id] = (pts[p.pareja2_id]||0) + (r.puntos_p2||0);
+        diff[p.pareja1_id] = (diff[p.pareja1_id]||0) + (r.diff_p1||0);
+        diff[p.pareja2_id] = (diff[p.pareja2_id]||0) + (r.diff_p2||0);
+      });
     });
     jData.ranking = todasParejas
-      .map(p => ({ ...p, pts: pts[p.id] || 0, diff: diff[p.id] || 0 }))
-      .sort((a, b) => b.pts - a.pts || b.diff - a.diff)
-      .map((p, i) => ({ ...p, pos: i + 1 }));
+      .map(p => ({...p, pts: pts[p.id]||0, diff: diff[p.id]||0}))
+      .sort((a,b) => b.pts-a.pts || b.diff-a.diff)
+      .map((p,i) => ({...p, pos:i+1}));
   }
   renderJugadora();
 }
@@ -203,17 +209,16 @@ function jTab(tab) {
   jData.tab = tab;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('jnav-' + tab).classList.add('active');
-  // Fixture completo de su categoria
+  // Fixture completo
   const { data: todosPartidos } = await sb.from('partidos')
     .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
     .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
     .order('fecha_id', { ascending: true });
-
   if (todosPartidos) {
-    const { data: todosRes } = await sb.from('resultados').select('partido_id, set1_p1, set1_p2, set2_p1, set2_p2, tb_p1, tb_p2, puntos_p1, puntos_p2, aprobado');
-    const resMap = {};
-    (todosRes || []).forEach(r => { if (r.aprobado) resMap[r.partido_id] = r; });
-    jData.fixture = todosPartidos.map(p => ({ ...p, resultado: resMap[p.id] || null }));
+    jData.fixture = todosPartidos.map(p => ({
+      ...p,
+      resultado: (resultados||[]).find(r => r.partido_id === p.id) || null
+    }));
   }
 
   renderJugadora();
@@ -429,25 +434,22 @@ async function guardarResultado() {
 // ── ADMIN ────────────────────────────────────────────────────────────────────
 async function loadAdmin() {
   document.getElementById('a-content').innerHTML = '<div class="loading">Cargando...</div>';
-  const { data: pend } = await sb.from('resultados')
-    .select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*))')
-    .eq('aprobado', false).order('created_at', { ascending: false });
-  aData.pendientes = pend || [];
-  const { data: apro } = await sb.from('resultados')
-    .select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*))')
-    .eq('aprobado', true).order('created_at', { ascending: false }).limit(15);
-  aData.aprobados = apro || [];
-  const { data: parejas } = await sb.from('parejas').select('*').order('categoria').order('nombre');
-  aData.parejas = parejas || [];
-
-  // Ranking - single query for all results
-  const { data: todosRes } = await sb.from('resultados')
-    .select('*, partido:partidos(pareja1_id, pareja2_id)')
-    .eq('aprobado', true);
   
+  // Load in parallel
+  const [pendRes, aproRes, parejasRes, todosResRes] = await Promise.all([
+    sb.from('resultados').select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)))').eq('aprobado', false).order('created_at', {ascending: false}),
+    sb.from('resultados').select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)))').eq('aprobado', true).order('created_at', {ascending: false}).limit(10),
+    sb.from('parejas').select('*').order('categoria').order('nombre'),
+    sb.from('resultados').select('partido_id, puntos_p1, puntos_p2, diff_p1, diff_p2, partido:partidos(pareja1_id,pareja2_id)').eq('aprobado', true)
+  ]);
+  
+  aData.pendientes = pendRes.data || [];
+  aData.aprobados = aproRes.data || [];
+  aData.parejas = parejasRes.data || [];
+
   const pts = {}, diff = {};
   aData.parejas.forEach(p => { pts[p.id] = 0; diff[p.id] = 0; });
-  (todosRes || []).forEach(r => {
+  (todosResRes.data || []).forEach(r => {
     const p = r.partido;
     if (!p) return;
     pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
@@ -533,21 +535,20 @@ function renderAdmin() {
 
 
   else if (tab === 'fixture') {
-    const { data: todasFechas } = await (async () => {
-      const r = await sb.from('fechas').select('*').order('id');
-      return r;
-    })();
+    el.innerHTML = '<div class="loading">Cargando fixture...</div>';
     const { data: todosP } = await sb.from('partidos')
-      .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*), resultado:resultados(*)')
+      .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
       .order('fecha_id').order('hora');
+    const { data: resApro } = await sb.from('resultados').select('partido_id,set1_p1,set1_p2,set2_p1,set2_p2,tb_p1,tb_p2').eq('aprobado',true);
+    const resMap = {};
+    (resApro||[]).forEach(r => resMap[r.partido_id]=r);
     
     let html = '<div class="section">';
     const fechas = {};
     (todosP || []).forEach(p => {
       const fn = p.fecha?.nombre || 'Sin fecha';
       if (!fechas[fn]) fechas[fn] = [];
-      const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
-      fechas[fn].push({ ...p, res: r });
+      fechas[fn].push({ ...p, res: resMap[p.id] || null });
     });
     
     Object.entries(fechas).forEach(([fname, partidos]) => {
