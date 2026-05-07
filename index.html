@@ -311,7 +311,7 @@ function renderJugadora() {
         let borderColor = '#e0e0dc';
         if (r) borderColor = gane ? '#1D9E75' : empate ? '#BA7517' : '#E24B4A';
         
-        html += \`<div class="card" style="padding:0.875rem 1rem;border-left:3px solid \${borderColor};margin-bottom:8px">
+        html += `<div class="card" style="padding:0.875rem 1rem;border-left:3px solid \${borderColor};margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div style="font-size:12px;font-weight:600;color:#1D9E75;margin-bottom:3px">\${esc(p.fecha?.nombre)}</div>
@@ -319,13 +319,13 @@ function renderJugadora() {
               <div style="font-size:11px;color:#999;margin-top:2px">\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · Cancha '+esc(p.cancha) : ''}</div>
             </div>
             <div style="text-align:right">
-              \${r ? \`<div style="font-size:12px;color:#666">\${sets}</div>
+              \${r ? `<div style="font-size:12px;color:#666">\${sets}</div>
               <span class="badge \${gane ? 'badge-v' : empate ? 'badge-a' : 'badge-r'}" style="margin-top:4px;display:inline-block">
                 \${gane ? 'Victoria' : empate ? 'Empate' : 'Derrota'}
-              </span>\` : '<span class="badge badge-g">Pendiente</span>'}
+              </span>` : '<span class="badge badge-g">Pendiente</span>'}
             </div>
           </div>
-        </div>\`;
+        </div>`;
       });
     }
     html += '</div>';
@@ -540,12 +540,12 @@ function renderAdmin() {
     });
     
     Object.entries(fechas).forEach(([fname, partidos]) => {
-      html += \`<p class="stitle">\${esc(fname)}</p>\`;
+      html += `<p class="stitle">\${esc(fname)}</p>`;
       partidos.forEach(p => {
         const r = p.res;
-        const sets = r ? \`\${r.set1_p1}-\${r.set1_p2} / \${r.set2_p1}-\${r.set2_p2}\${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}\` : null;
+        const sets = r ? `\${r.set1_p1}-\${r.set1_p2} / \${r.set2_p1}-\${r.set2_p2}\${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}` : null;
         const lugar = p.lugar === 'PLT' ? 'Los Trapenses' : p.lugar === 'Everest' ? 'Club Everest' : p.lugar;
-        html += \`<div class="match-card">
+        html += `<div class="match-card">
           <div class="match-teams">
             <span class="match-team" style="font-size:12px">\${esc(p.pareja1?.nombre)}</span>
             <span class="match-score-mid">\${sets || 'vs'}</span>
@@ -555,7 +555,7 @@ function renderAdmin() {
             <span>\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · C'+esc(p.cancha) : ''}</span>
             <span class="badge \${r ? 'badge-v' : 'badge-g'}">\${r ? 'Jugado' : 'Pendiente'}</span>
           </div>
-        </div>\`;
+        </div>`;
       });
     });
     html += '</div>';
