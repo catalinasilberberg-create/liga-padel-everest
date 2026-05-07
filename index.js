@@ -1,83 +1,630 @@
-import { useState } from 'react'
-import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Liga Pádel Everest</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9f9f7; color: #1a1a1a; min-height: 100vh; }
+.app { max-width: 430px; margin: 0 auto; background: white; min-height: 100vh; padding-bottom: 72px; }
+.topbar { background: white; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #e0e0dc; position: sticky; top: 0; z-index: 10; }
+.topbar-logo { font-size: 17px; font-weight: 600; }
+.topbar-logo span { color: #1D9E75; }
+.topbar-sub { font-size: 12px; color: #666; margin-top: 2px; }
+.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: white; border-top: 1px solid #e0e0dc; display: flex; z-index: 20; }
+.nav-btn { flex: 1; padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; cursor: pointer; font-size: 10px; color: #999; font-family: inherit; }
+.nav-btn.active { color: #1D9E75; }
+.nav-icon { font-size: 20px; }
+.section { padding: 1rem; }
+.stitle { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; margin-top: 0.5rem; }
+.card { background: white; border: 1px solid #e0e0dc; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 10px; }
+.badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; white-space: nowrap; display: inline-block; }
+.badge-v { background: #E1F5EE; color: #0F6E56; }
+.badge-a { background: #FAEEDA; color: #854F0B; }
+.badge-r { background: #FCEBEB; color: #A32D2D; }
+.badge-g { background: #F5F5F3; color: #666; }
+.btn { width: 100%; padding: 11px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; font-family: inherit; margin-top: 8px; }
+.btn-v { background: #1D9E75; color: white; }
+.btn-o { background: transparent; color: #1D9E75; border: 1px solid #1D9E75; }
+.btn-r { background: transparent; color: #A32D2D; border: 1px solid #A32D2D; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.hidden { display: none !important; }
+.loading { text-align: center; padding: 3rem; color: #999; font-size: 14px; }
+.login-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+.login-logo { font-size: 32px; font-weight: 700; margin-bottom: 6px; }
+.login-logo span { color: #1D9E75; }
+.login-sub { font-size: 14px; color: #666; margin-bottom: 2rem; text-align: center; }
+.field { margin-bottom: 14px; width: 100%; max-width: 340px; }
+.field label { font-size: 12px; color: #666; display: block; margin-bottom: 5px; }
+.field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #e0e0dc; border-radius: 8px; font-size: 14px; font-family: inherit; background: #F5F5F3; }
+.rank-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f0f0ee; }
+.rank-row:last-child { border-bottom: none; }
+.rank-num { font-size: 12px; color: #999; width: 20px; text-align: center; flex-shrink: 0; }
+.rank-name { font-size: 13px; flex: 1; }
+.rank-pts { font-size: 13px; font-weight: 600; color: #1D9E75; width: 28px; text-align: right; }
+.rank-diff { font-size: 12px; color: #999; width: 36px; text-align: right; }
+.rank-row.me { background: #E1F5EE; border-radius: 8px; padding: 9px 8px; margin: 0 -8px; }
+.match-card { border: 1px solid #e0e0dc; border-radius: 12px; padding: 0.875rem 1rem; margin-bottom: 8px; }
+.match-teams { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.match-team { font-size: 13px; font-weight: 500; flex: 1; text-align: center; }
+.match-score-mid { font-size: 11px; color: #999; white-space: nowrap; }
+.match-meta { font-size: 11px; color: #999; display: flex; justify-content: space-between; align-items: center; }
+.score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.score-lbl { font-size: 12px; color: #666; width: 44px; flex-shrink: 0; }
+.score-inp { width: 52px; text-align: center; padding: 8px 4px; border: 1px solid #e0e0dc; border-radius: 8px; font-size: 18px; font-weight: 600; background: #F5F5F3; }
+.score-sep { font-size: 16px; color: #ccc; }
+.pts-preview { background: #F5F5F3; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px; margin-bottom: 4px; }
+.cat-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.cat-tab { padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: none; font-family: inherit; background: #F5F5F3; color: #666; }
+.cat-tab.active { background: #1D9E75; color: white; font-weight: 500; }
+.success-screen { text-align: center; padding: 3rem 1rem; }
+.success-icon { font-size: 56px; margin-bottom: 12px; }
+.error-msg { font-size: 13px; color: #A32D2D; margin-bottom: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+</style>
+</head>
+<body>
 
-export default function Login() {
-  const router = useRouter()
-  const [telefono, setTelefono] = useState('')
-  const [codigo, setCodigo] = useState('')
-  const [paso, setPaso] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+<div id="screen-login" class="app">
+  <div class="login-wrap">
+    <div class="login-logo">Liga<span>Pádel</span></div>
+    <p class="login-sub">Club Everest · 1er Semestre 2026</p>
+    <div class="field">
+      <label>Tu número de teléfono</label>
+      <input type="tel" id="tel-input" placeholder="56912345678" />
+      <p style="font-size:11px;color:#999;margin-top:4px">Con código de país, sin espacios</p>
+    </div>
+    <p id="login-error" class="error-msg hidden"></p>
+    <button class="btn btn-v" style="max-width:340px;width:100%" onclick="login()">Entrar →</button>
+    <p style="font-size:12px;color:#ccc;margin-top:2rem;text-align:center">¿Problemas? Escríbele a la administradora</p>
+  </div>
+</div>
 
-  async function buscarJugadora() {
-    setLoading(true)
-    setError('')
-    const tel = telefono.trim()
-    const { data, error } = await supabase
-      .from('parejas')
-      .select('*')
-      .or(`telefono1.eq.${tel},telefono2.eq.${tel}`)
-      .single()
+<!-- VISTA JUGADORA -->
+<div id="screen-jugadora" class="app hidden">
+  <div class="topbar">
+    <div class="topbar-logo">Liga<span>Pádel</span></div>
+    <div class="topbar-sub" id="j-nombre"></div>
+  </div>
+  <div id="j-content"></div>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="jnav-inicio" onclick="jTab('inicio')"><span class="nav-icon">⌂</span>Inicio</button>
+    <button class="nav-btn" id="jnav-partido" onclick="jTab('partido')"><span class="nav-icon">🎾</span>Mi partido</button>
+    <button class="nav-btn" id="jnav-ranking" onclick="jTab('ranking')"><span class="nav-icon">📊</span>Tabla</button>
+    <button class="nav-btn" id="jnav-fixture" onclick="jTab('fixture')"><span class="nav-icon">📅</span>Fixture</button>
+    <button class="nav-btn" id="jnav-historial" onclick="jTab('historial')"><span class="nav-icon">📋</span>Historial</button>
+  </nav>
+</div>
 
-    if (error || !data) {
-      // Si no encuentra por teléfono, buscar si es admin
-      if (tel === '56912345678' || tel === process.env.NEXT_PUBLIC_ADMIN_PHONE) {
-        localStorage.setItem('user', JSON.stringify({ rol: 'admin', nombre: 'Administrador' }))
-        router.push('/admin')
-      } else {
-        setError('Número no encontrado. Verifica que sea el número registrado en la liga.')
-      }
-    } else {
-      // Guardar sesión simple
-      localStorage.setItem('user', JSON.stringify({
-        rol: 'jugadora',
-        pareja_id: data.id,
-        nombre: data.nombre,
-        categoria: data.categoria,
-        grupo: data.grupo,
-      }))
-      router.push('/jugadora')
-    }
-    setLoading(false)
+<!-- VISTA ADMIN -->
+<div id="screen-admin" class="app hidden">
+  <div class="topbar">
+    <div class="topbar-logo">Liga<span>Pádel</span> <span style="font-size:12px;color:#999;font-weight:400">Admin</span></div>
+  </div>
+  <div id="a-content"></div>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="anav-resultados" onclick="aTab('resultados')"><span class="nav-icon">🎾</span>Resultados</button>
+    <button class="nav-btn" id="anav-tabla" onclick="aTab('tabla')"><span class="nav-icon">📊</span>Tabla</button>
+    <button class="nav-btn" id="anav-parejas" onclick="aTab('parejas')"><span class="nav-icon">👥</span>Parejas</button>
+    <button class="nav-btn" id="anav-fixture" onclick="aTab('fixture')"><span class="nav-icon">📅</span>Fixture</button>
+  </nav>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zpjqdcgoriazorkcmzca.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwanFkY2dvcmlhem9ya2NtemNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5OTMwOTQsImV4cCI6MjA5MzU2OTA5NH0.vMpjnz3fEmJ48Miha3_t9ckMPUUfGgpgsoTTUv9Jm8k';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const ADMIN_PHONE = '56987689971';
+const CATS = ['PRINCIPIANTE','CATEGORÍA D','CATEGORÍA C -','CATEGORÍA C+'];
+
+let user = null;
+let jData = { partido: null, historial: [], ranking: [], fixture: [], tab: 'inicio' };
+let aData = { pendientes: [], aprobados: [], ranking: {}, tab: 'resultados', catSel: 'PRINCIPIANTE', parejas: [] };
+
+function show(id) {
+  ['screen-login','screen-jugadora','screen-admin'].forEach(s => document.getElementById(s).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── LOGIN ────────────────────────────────────────────────────────────────────
+async function login() {
+  const tel = document.getElementById('tel-input').value.trim();
+  const errEl = document.getElementById('login-error');
+  errEl.classList.add('hidden');
+  if (!tel) return;
+
+  if (tel === ADMIN_PHONE) {
+    user = { rol: 'admin', nombre: 'Administrador' };
+    show('screen-admin');
+    loadAdmin();
+    return;
   }
 
-  return (
-    <div className="login-wrap">
-      <div className="login-logo">Liga<span>Pádel</span></div>
-      <p className="login-sub">Club Everest · 1er Semestre 2026</p>
-
-      <div style={{ width: '100%', maxWidth: 340 }}>
-        {paso === 1 && (
-          <>
-            <div className="field">
-              <label>Tu número de teléfono</label>
-              <input
-                type="tel"
-                placeholder="Ej: 56912345678"
-                value={telefono}
-                onChange={e => setTelefono(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && buscarJugadora()}
-              />
-              <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-                Con código de país, sin espacios. Ej: 56912345678
-              </p>
-            </div>
-            {error && <p style={{ fontSize: 13, color: '#A32D2D', marginBottom: 8 }}>{error}</p>}
-            <button
-              className="btn btn-verde"
-              onClick={buscarJugadora}
-              disabled={loading || !telefono}
-            >
-              {loading ? 'Buscando...' : 'Entrar →'}
-            </button>
-          </>
-        )}
-      </div>
-
-      <p style={{ fontSize: 12, color: '#bbb', marginTop: '3rem', textAlign: 'center' }}>
-        ¿Problemas para entrar? Escríbele a la administradora.
-      </p>
-    </div>
-  )
+  const { data, error } = await sb.from('parejas').select('*').or(`telefono1.eq.${tel},telefono2.eq.${tel}`).single();
+  if (error || !data) {
+    errEl.textContent = 'Número no encontrado. Verifica que sea el número registrado.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  user = { rol: 'jugadora', pareja_id: data.id, nombre: data.nombre, categoria: data.categoria, grupo: data.grupo || '' };
+  document.getElementById('j-nombre').textContent = user.nombre;
+  show('screen-jugadora');
+  loadJugadora();
 }
+document.getElementById('tel-input').addEventListener('keydown', e => e.key === 'Enter' && login());
+
+// ── JUGADORA ─────────────────────────────────────────────────────────────────
+async function loadJugadora() {
+  document.getElementById('j-content').innerHTML = '<div class="loading">Cargando...</div>';
+  
+  // Query 1: mis partidos con resultados embebidos
+  const { data: partidos } = await sb.from('partidos')
+    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*), resultado:resultados(*)')
+    .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
+    .order('fecha_id', { ascending: true });
+
+  const resMap = {};
+  (partidos||[]).forEach(p => {
+    const r = Array.isArray(p.resultado) ? p.resultado[0] : p.resultado;
+    if (r && r.aprobado) resMap[p.id] = r;
+  });
+  const idsConRes = new Set(Object.keys(resMap).map(Number));
+  jData.partido = (partidos||[]).find(p => !idsConRes.has(p.id)) || null;
+  jData.historial = (partidos||[]).filter(p => idsConRes.has(p.id)).map(p => ({...p, resultado: resMap[p.id]})).reverse();
+  jData.fixture = (partidos||[]).map(p => ({...p, resultado: resMap[p.id]||null}));
+
+  // Query 2: ranking de su grupo
+  const { data: todasParejas } = await sb.from('parejas').select('*').eq('categoria', user.categoria).eq('grupo', user.grupo);
+  if (todasParejas && todasParejas.length) {
+    const ids = todasParejas.map(p => p.id);
+    const orStr = ids.map(id => `pareja1_id.eq.${id},pareja2_id.eq.${id}`).join(',');
+    const { data: ptsData } = await sb.from('partidos')
+      .select('pareja1_id, pareja2_id, resultado:resultados(puntos_p1,puntos_p2,diff_p1,diff_p2,aprobado)')
+      .or(orStr);
+    const pts = {}, diff = {};
+    todasParejas.forEach(p => { pts[p.id]=0; diff[p.id]=0; });
+    (ptsData||[]).forEach(p => {
+      const rs = Array.isArray(p.resultado) ? p.resultado : (p.resultado ? [p.resultado] : []);
+      rs.forEach(r => {
+        if (!r || !r.aprobado) return;
+        pts[p.pareja1_id] = (pts[p.pareja1_id]||0) + (r.puntos_p1||0);
+        pts[p.pareja2_id] = (pts[p.pareja2_id]||0) + (r.puntos_p2||0);
+        diff[p.pareja1_id] = (diff[p.pareja1_id]||0) + (r.diff_p1||0);
+        diff[p.pareja2_id] = (diff[p.pareja2_id]||0) + (r.diff_p2||0);
+      });
+    });
+    jData.ranking = todasParejas
+      .map(p => ({...p, pts: pts[p.id]||0, diff: diff[p.id]||0}))
+      .sort((a,b) => b.pts-a.pts || b.diff-a.diff)
+      .map((p,i) => ({...p, pos:i+1}));
+  }
+  renderJugadora();
+}
+
+function jTab(tab) {
+  jData.tab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('jnav-' + tab).classList.add('active');
+  // Fixture completo
+  const { data: todosPartidos } = await sb.from('partidos')
+    .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
+    .or(`pareja1_id.eq.${user.pareja_id},pareja2_id.eq.${user.pareja_id}`)
+    .order('fecha_id', { ascending: true });
+  if (todosPartidos) {
+    jData.fixture = todosPartidos.map(p => ({
+      ...p,
+      resultado: (resultados||[]).find(r => r.partido_id === p.id) || null
+    }));
+  }
+
+  renderJugadora();
+}
+
+function renderJugadora() {
+  const { tab, partido, historial, ranking } = jData;
+  const el = document.getElementById('j-content');
+
+  if (tab === 'inicio') {
+    let html = '<div class="section">';
+    if (partido) {
+      const lugar = partido.lugar === 'PLT' ? 'Pádel Los Trapenses' : partido.lugar === 'Everest' ? 'Club Everest' : partido.lugar;
+      html += `<p class="stitle">Próximo partido</p>
+      <div class="card">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px">${esc(partido.pareja1?.nombre)} <span style="color:#999;font-weight:400">vs</span> ${esc(partido.pareja2?.nombre)}</div>
+        <div style="font-size:12px;color:#666">${esc(partido.fecha?.nombre)} · ${esc(partido.hora)}</div>
+        <div style="font-size:12px;color:#666;margin-top:2px">${esc(lugar)}${partido.cancha ? ' · Cancha ' + esc(partido.cancha) : ''}</div>
+        <button class="btn btn-v" onclick="jTab('partido')">Ingresar resultado →</button>
+      </div>`;
+    } else {
+      html += `<div class="card" style="text-align:center;padding:2rem"><div style="font-size:32px;margin-bottom:8px">🎾</div><div style="font-size:14px;color:#666">No hay partidos pendientes</div></div>`;
+    }
+    if (ranking.length) {
+      html += `<p class="stitle" style="margin-top:1rem">Tu posición</p><div class="card" style="padding:0.75rem 1rem">`;
+      ranking.slice(0, 3).forEach(p => {
+        html += `<div class="rank-row${p.id === user.pareja_id ? ' me' : ''}">
+          <span class="rank-num">${p.pos}</span>
+          <span class="rank-name">${esc(p.nombre)}${p.id === user.pareja_id ? ' 👈' : ''}</span>
+          <span class="rank-diff">${p.diff > 0 ? '+' : ''}${p.diff}</span>
+          <span class="rank-pts">${p.pts}</span>
+        </div>`;
+      });
+      if (ranking.length > 3) html += `<button class="btn btn-o" style="margin-top:6px" onclick="jTab('ranking')">Ver tabla completa</button>`;
+      html += '</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  else if (tab === 'partido') {
+    if (!partido) {
+      el.innerHTML = `<div class="section"><div class="card" style="text-align:center;padding:2rem"><div style="font-size:32px;margin-bottom:8px">✅</div><div style="font-size:14px;color:#666">No hay partidos pendientes</div></div></div>`;
+      return;
+    }
+    el.innerHTML = `
+    <div class="section">
+      <p class="stitle">Ingresar resultado</p>
+      <p style="font-size:13px;color:#666;text-align:center;margin-bottom:12px">${esc(partido.pareja1?.nombre)} <b>vs</b> ${esc(partido.pareja2?.nombre)}</p>
+      <div class="card">
+        <div style="display:flex;font-size:11px;color:#999;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f0f0ee">
+          <span style="width:52px"></span><span style="flex:1;text-align:center">${esc((partido.pareja1?.nombre||'').split(' - ')[0])}</span>
+          <span style="width:20px"></span>
+          <span style="flex:1;text-align:center">${esc((partido.pareja2?.nombre||'').split(' - ')[0])}</span>
+        </div>
+        <div class="score-row"><span class="score-lbl">Set 1</span><input class="score-inp" id="s1a" type="number" min="0" max="7" placeholder="0" oninput="updatePts()"><span class="score-sep">–</span><input class="score-inp" id="s1b" type="number" min="0" max="7" placeholder="0" oninput="updatePts()"></div>
+        <div class="score-row"><span class="score-lbl">Set 2</span><input class="score-inp" id="s2a" type="number" min="0" max="7" placeholder="0" oninput="updatePts()"><span class="score-sep">–</span><input class="score-inp" id="s2b" type="number" min="0" max="7" placeholder="0" oninput="updatePts()"></div>
+        <div class="score-row hidden" id="tb-row"><span class="score-lbl">TB</span><input class="score-inp" id="tba" type="number" min="0" placeholder="0" oninput="updatePts()"><span class="score-sep">–</span><input class="score-inp" id="tbb" type="number" min="0" placeholder="0" oninput="updatePts()"></div>
+        <div id="pts-preview"></div>
+      </div>
+      <button class="btn btn-v" id="btn-guardar" onclick="guardarResultado()" disabled>Enviar resultado →</button>
+      <p style="font-size:11px;color:#999;text-align:center;margin-top:8px">La administradora revisará y aprobará el resultado</p>
+    </div>`;
+  }
+
+  else if (tab === 'ranking') {
+    let html = `<div class="section"><p class="stitle">${esc(user.categoria)} ${user.grupo ? '· ' + esc(user.grupo) : ''}</p>
+    <div class="card" style="padding:0.75rem 1rem">
+      <div style="display:flex;font-size:11px;color:#999;padding-bottom:8px;border-bottom:1px solid #f0f0ee;margin-bottom:4px">
+        <span style="width:28px">#</span><span style="flex:1">Pareja</span><span style="width:40px;text-align:right">Dif.</span><span style="width:32px;text-align:right">Pts</span>
+      </div>`;
+    ranking.forEach(p => {
+      html += `<div class="rank-row${p.id === user.pareja_id ? ' me' : ''}">
+        <span class="rank-num">${p.pos}</span>
+        <span class="rank-name">${esc(p.nombre)}${p.id === user.pareja_id ? ' 👈' : ''}</span>
+        <span class="rank-diff">${p.diff > 0 ? '+' : ''}${p.diff}</span>
+        <span class="rank-pts">${p.pts}</span>
+      </div>`;
+    });
+    html += '</div></div>';
+    el.innerHTML = html;
+  }
+
+
+  else if (tab === 'fixture') {
+    const { fixture } = jData;
+    let html = '<div class="section"><p class="stitle">Mi fixture completo</p>';
+    
+    if (!fixture || !fixture.length) {
+      html += '<div class="card" style="text-align:center;padding:1.5rem;color:#999;font-size:14px">No hay fixture cargado</div>';
+    } else {
+      fixture.forEach(p => {
+        const r = p.resultado;
+        const esP1 = p.pareja1_id === user.pareja_id;
+        const rival = esP1 ? p.pareja2?.nombre : p.pareja1?.nombre;
+        const lugar = p.lugar === 'PLT' ? 'Los Trapenses' : p.lugar === 'Everest' ? 'Club Everest' : p.lugar;
+        const sets = r ? `${r.set1_p1}-${r.set1_p2} / ${r.set2_p1}-${r.set2_p2}${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}` : null;
+        const miPts = r ? (esP1 ? r.puntos_p1 : r.puntos_p2) : null;
+        const gane = miPts === 3;
+        const empate = miPts === 2 || miPts === 1;
+        
+        let borderColor = '#e0e0dc';
+        if (r) borderColor = gane ? '#1D9E75' : empate ? '#BA7517' : '#E24B4A';
+        
+        html += \`<div class="card" style="padding:0.875rem 1rem;border-left:3px solid \${borderColor};margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:#1D9E75;margin-bottom:3px">\${esc(p.fecha?.nombre)}</div>
+              <div style="font-size:13px;font-weight:500">vs \${esc(rival)}</div>
+              <div style="font-size:11px;color:#999;margin-top:2px">\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · Cancha '+esc(p.cancha) : ''}</div>
+            </div>
+            <div style="text-align:right">
+              \${r ? \`<div style="font-size:12px;color:#666">\${sets}</div>
+              <span class="badge \${gane ? 'badge-v' : empate ? 'badge-a' : 'badge-r'}" style="margin-top:4px;display:inline-block">
+                \${gane ? 'Victoria' : empate ? 'Empate' : 'Derrota'}
+              </span>\` : '<span class="badge badge-g">Pendiente</span>'}
+            </div>
+          </div>
+        </div>\`;
+      });
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  else if (tab === 'historial') {
+    let html = '<div class="section"><p class="stitle">Mis partidos jugados</p>';
+    if (!historial.length) {
+      html += '<div class="card" style="text-align:center;padding:1.5rem;color:#999;font-size:14px">Aún no hay resultados registrados</div>';
+    }
+    historial.forEach(p => {
+      const r = p.resultado;
+      const esP1 = p.pareja1_id === user.pareja_id;
+      const miPts = esP1 ? r?.puntos_p1 : r?.puntos_p2;
+      const gane = miPts === 3;
+      const sets = r ? `${r.set1_p1}-${r.set1_p2} / ${r.set2_p1}-${r.set2_p2}${r.tb_p1 ? ' / ' + r.tb_p1 + '-' + r.tb_p2 : ''}` : '—';
+      html += `<div class="match-card">
+        <div class="match-teams">
+          <span class="match-team" style="color:${esP1 && gane ? '#1D9E75' : esP1 ? '#A32D2D' : ''}">${esc(p.pareja1?.nombre)}</span>
+          <span class="match-score-mid">${sets}</span>
+          <span class="match-team" style="color:${!esP1 && gane ? '#1D9E75' : !esP1 ? '#A32D2D' : ''}">${esc(p.pareja2?.nombre)}</span>
+        </div>
+        <div class="match-meta"><span>${esc(p.fecha?.nombre)}</span><span class="badge ${gane ? 'badge-v' : 'badge-r'}">${gane ? 'Victoria' : 'Derrota'}</span></div>
+      </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+}
+
+function getScores() {
+  return {
+    s1a: Number(document.getElementById('s1a')?.value || 0),
+    s1b: Number(document.getElementById('s1b')?.value || 0),
+    s2a: Number(document.getElementById('s2a')?.value || 0),
+    s2b: Number(document.getElementById('s2b')?.value || 0),
+    tba: Number(document.getElementById('tba')?.value || 0),
+    tbb: Number(document.getElementById('tbb')?.value || 0),
+  };
+}
+
+function updatePts() {
+  const { s1a, s1b, s2a, s2b, tba, tbb } = getScores();
+  const s1ok = document.getElementById('s1a').value !== '' && document.getElementById('s1b').value !== '';
+  const s2ok = document.getElementById('s2a').value !== '' && document.getElementById('s2b').value !== '';
+  if (!s1ok || !s2ok) { document.getElementById('pts-preview').innerHTML = ''; return; }
+  const w1 = (s1a > s1b ? 1 : 0) + (s2a > s2b ? 1 : 0);
+  const w2 = (s1b > s1a ? 1 : 0) + (s2b > s2a ? 1 : 0);
+  const tbRow = document.getElementById('tb-row');
+  const needTB = w1 === 1 && w2 === 1;
+  tbRow.classList.toggle('hidden', !needTB);
+  let p1, p2;
+  if (w1 === 2) { p1 = 3; p2 = 0; }
+  else if (w2 === 2) { p1 = 0; p2 = 3; }
+  else if (needTB && document.getElementById('tba').value !== '' && document.getElementById('tbb').value !== '') {
+    p1 = tba > tbb ? 3 : 1; p2 = tbb > tba ? 3 : 1;
+  } else { p1 = null; p2 = null; }
+  const n1 = (jData.partido?.pareja1?.nombre || '').split(' - ')[0];
+  const n2 = (jData.partido?.pareja2?.nombre || '').split(' - ')[0];
+  if (p1 !== null) {
+    document.getElementById('pts-preview').innerHTML = `<div class="pts-preview"><span>${esc(n1)}: <b style="color:${p1===3?'#1D9E75':'#666'}">${p1} pts</b></span><span>${esc(n2)}: <b style="color:${p2===3?'#1D9E75':'#666'}">${p2} pts</b></span></div>`;
+    document.getElementById('btn-guardar').disabled = false;
+  } else {
+    document.getElementById('pts-preview').innerHTML = '';
+    document.getElementById('btn-guardar').disabled = needTB;
+  }
+}
+
+async function guardarResultado() {
+  const { s1a, s1b, s2a, s2b, tba, tbb } = getScores();
+  const w1 = (s1a > s1b ? 1 : 0) + (s2a > s2b ? 1 : 0);
+  const w2 = (s1b > s1a ? 1 : 0) + (s2b > s2a ? 1 : 0);
+  let p1, p2;
+  if (w1 === 2) { p1 = 3; p2 = 0; }
+  else if (w2 === 2) { p1 = 0; p2 = 3; }
+  else { p1 = tba > tbb ? 3 : 1; p2 = tbb > tba ? 3 : 1; }
+  const needTB = w1 === 1 && w2 === 1;
+  const diffP1 = (s1a - s1b) + (s2a - s2b) + (needTB ? tba - tbb : 0);
+  document.getElementById('btn-guardar').disabled = true;
+  document.getElementById('btn-guardar').textContent = 'Guardando...';
+  await sb.from('resultados').upsert({
+    partido_id: jData.partido.id,
+    set1_p1: s1a, set1_p2: s1b, set2_p1: s2a, set2_p2: s2b,
+    tb_p1: needTB ? tba : null, tb_p2: needTB ? tbb : null,
+    puntos_p1: p1, puntos_p2: p2,
+    diff_p1: diffP1, diff_p2: -diffP1,
+    ingresado_por: user.nombre, aprobado: false
+  }, { onConflict: 'partido_id' });
+  document.getElementById('j-content').innerHTML = `<div class="success-screen"><div class="success-icon">✅</div><div style="font-size:16px;font-weight:600;margin-bottom:6px">Resultado enviado</div><div style="font-size:13px;color:#666">La administradora lo revisará pronto</div></div>`;
+  setTimeout(() => { loadJugadora(); jTab('inicio'); }, 2500);
+}
+
+// ── ADMIN ────────────────────────────────────────────────────────────────────
+async function loadAdmin() {
+  document.getElementById('a-content').innerHTML = '<div class="loading">Cargando...</div>';
+  
+  // Load in parallel
+  const [pendRes, aproRes, parejasRes, todosResRes] = await Promise.all([
+    sb.from('resultados').select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)))').eq('aprobado', false).order('created_at', {ascending: false}),
+    sb.from('resultados').select('*, partido:partidos(*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)))').eq('aprobado', true).order('created_at', {ascending: false}).limit(10),
+    sb.from('parejas').select('*').order('categoria').order('nombre'),
+    sb.from('resultados').select('partido_id, puntos_p1, puntos_p2, diff_p1, diff_p2, partido:partidos(pareja1_id,pareja2_id)').eq('aprobado', true)
+  ]);
+  
+  aData.pendientes = pendRes.data || [];
+  aData.aprobados = aproRes.data || [];
+  aData.parejas = parejasRes.data || [];
+
+  const pts = {}, diff = {};
+  aData.parejas.forEach(p => { pts[p.id] = 0; diff[p.id] = 0; });
+  (todosResRes.data || []).forEach(r => {
+    const p = r.partido;
+    if (!p) return;
+    pts[p.pareja1_id] = (pts[p.pareja1_id] || 0) + (r.puntos_p1 || 0);
+    pts[p.pareja2_id] = (pts[p.pareja2_id] || 0) + (r.puntos_p2 || 0);
+    diff[p.pareja1_id] = (diff[p.pareja1_id] || 0) + (r.diff_p1 || 0);
+    diff[p.pareja2_id] = (diff[p.pareja2_id] || 0) + (r.diff_p2 || 0);
+  });
+
+  for (const cat of CATS) {
+    const catParejas = aData.parejas.filter(p => p.categoria === cat);
+    const grupos = {};
+    catParejas.forEach(p => {
+      const g = p.grupo || 'Sin grupo';
+      if (!grupos[g]) grupos[g] = [];
+      grupos[g].push({ ...p, pts: pts[p.id] || 0, diff: diff[p.id] || 0 });
+    });
+    Object.keys(grupos).forEach(g => {
+      grupos[g].sort((a, b) => b.pts - a.pts || b.diff - a.diff);
+      grupos[g] = grupos[g].map((p, i) => ({ ...p, pos: i + 1 }));
+    });
+    aData.ranking[cat] = grupos;
+  }
+  renderAdmin();
+}
+
+function aTab(tab) {
+  aData.tab = tab;
+  document.querySelectorAll('#screen-admin .nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('anav-' + tab).classList.add('active');
+  renderAdmin();
+}
+
+function renderAdmin() {
+  const el = document.getElementById('a-content');
+  const { tab, pendientes, aprobados, ranking, catSel, parejas } = aData;
+
+  if (tab === 'resultados') {
+    let html = '<div class="section">';
+    if (pendientes.length) {
+      html += `<p class="stitle">Por aprobar (${pendientes.length})</p>`;
+      pendientes.forEach(r => {
+        const sets = `${r.set1_p1}-${r.set1_p2} / ${r.set2_p1}-${r.set2_p2}${r.tb_p1 ? ' / TB:' + r.tb_p1 + '-' + r.tb_p2 : ''}`;
+        html += `<div class="card" style="border-left:3px solid #BA7517">
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">${esc(r.partido?.pareja1?.nombre)} <span style="color:#999;font-weight:400">vs</span> ${esc(r.partido?.pareja2?.nombre)}</div>
+          <div style="font-size:13px;margin-bottom:4px">${sets} · <b>${r.puntos_p1}–${r.puntos_p2} pts</b></div>
+          <div style="font-size:11px;color:#999;margin-bottom:10px">${esc(r.partido?.fecha?.nombre)} · Ingresado por ${esc(r.ingresado_por)}</div>
+          <div class="grid2">
+            <button class="btn btn-v" style="margin-top:0" onclick="aprobar(${r.id})">✓ Aprobar</button>
+            <button class="btn btn-r" style="margin-top:0" onclick="rechazar(${r.id})">✕ Rechazar</button>
+          </div>
+        </div>`;
+      });
+    } else {
+      html += '<div class="card" style="text-align:center;padding:1.5rem;margin-bottom:12px"><div style="font-size:24px;margin-bottom:6px">✅</div><div style="font-size:13px;color:#666">Todo al día</div></div>';
+    }
+    html += `<p class="stitle">Últimos aprobados</p>`;
+    aprobados.slice(0, 8).forEach(r => {
+      const sets = `${r.set1_p1}-${r.set1_p2} / ${r.set2_p1}-${r.set2_p2}${r.tb_p1 ? ' / ' + r.tb_p1 + '-' + r.tb_p2 : ''}`;
+      html += `<div class="match-card">
+        <div class="match-teams"><span class="match-team">${esc(r.partido?.pareja1?.nombre)}</span><span class="match-score-mid">${sets}</span><span class="match-team">${esc(r.partido?.pareja2?.nombre)}</span></div>
+        <div class="match-meta"><span>${esc(r.partido?.fecha?.nombre)}</span><span class="badge badge-v">Aprobado</span></div>
+      </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  else if (tab === 'tabla') {
+    let html = '<div class="section">';
+    html += '<div class="cat-tabs">' + CATS.map(c => `<button class="cat-tab${c === catSel ? ' active' : ''}" onclick="selCat('${c}')">${c.replace('CATEGORÍA ','Cat ')}</button>`).join('') + '</div>';
+    const grupos = ranking[catSel] || {};
+    Object.entries(grupos).forEach(([grupo, ps]) => {
+      if (grupo !== 'Sin grupo') html += `<p class="stitle">${esc(grupo)}</p>`;
+      html += '<div class="card" style="padding:0.75rem 1rem;margin-bottom:12px"><div style="display:flex;font-size:11px;color:#999;padding-bottom:6px;border-bottom:1px solid #f0f0ee;margin-bottom:4px"><span style="width:28px">#</span><span style="flex:1">Pareja</span><span style="width:40px;text-align:right">Dif.</span><span style="width:32px;text-align:right">Pts</span></div>';
+      ps.forEach(p => {
+        html += `<div class="rank-row"><span class="rank-num">${p.pos}</span><span class="rank-name">${esc(p.nombre)}</span><span class="rank-diff">${p.diff > 0 ? '+' : ''}${p.diff}</span><span class="rank-pts">${p.pts}</span></div>`;
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+
+  else if (tab === 'fixture') {
+    el.innerHTML = '<div class="loading">Cargando fixture...</div>';
+    const { data: todosP } = await sb.from('partidos')
+      .select('*, fecha:fechas(*), pareja1:parejas!partidos_pareja1_id_fkey(*), pareja2:parejas!partidos_pareja2_id_fkey(*)')
+      .order('fecha_id').order('hora');
+    const { data: resApro } = await sb.from('resultados').select('partido_id,set1_p1,set1_p2,set2_p1,set2_p2,tb_p1,tb_p2').eq('aprobado',true);
+    const resMap = {};
+    (resApro||[]).forEach(r => resMap[r.partido_id]=r);
+    
+    let html = '<div class="section">';
+    const fechas = {};
+    (todosP || []).forEach(p => {
+      const fn = p.fecha?.nombre || 'Sin fecha';
+      if (!fechas[fn]) fechas[fn] = [];
+      fechas[fn].push({ ...p, res: resMap[p.id] || null });
+    });
+    
+    Object.entries(fechas).forEach(([fname, partidos]) => {
+      html += \`<p class="stitle">\${esc(fname)}</p>\`;
+      partidos.forEach(p => {
+        const r = p.res;
+        const sets = r ? \`\${r.set1_p1}-\${r.set1_p2} / \${r.set2_p1}-\${r.set2_p2}\${r.tb_p1 ? ' / '+r.tb_p1+'-'+r.tb_p2 : ''}\` : null;
+        const lugar = p.lugar === 'PLT' ? 'Los Trapenses' : p.lugar === 'Everest' ? 'Club Everest' : p.lugar;
+        html += \`<div class="match-card">
+          <div class="match-teams">
+            <span class="match-team" style="font-size:12px">\${esc(p.pareja1?.nombre)}</span>
+            <span class="match-score-mid">\${sets || 'vs'}</span>
+            <span class="match-team" style="font-size:12px">\${esc(p.pareja2?.nombre)}</span>
+          </div>
+          <div class="match-meta">
+            <span>\${esc(p.hora)} · \${esc(lugar)}\${p.cancha ? ' · C'+esc(p.cancha) : ''}</span>
+            <span class="badge \${r ? 'badge-v' : 'badge-g'}">\${r ? 'Jugado' : 'Pendiente'}</span>
+          </div>
+        </div>\`;
+      });
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  else if (tab === 'parejas') {
+    let html = '<div class="section"><p style="font-size:12px;color:#999;margin-bottom:10px">Toca una pareja para agregar sus teléfonos — son necesarios para que puedan entrar a la app.</p>';
+    parejas.forEach(p => {
+      html += `<div class="card" style="padding:0.875rem 1rem;cursor:pointer" onclick="editarTel(${p.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:13px;font-weight:500">${esc(p.nombre)}</div>
+          <div style="font-size:11px;color:#999;margin-top:2px">${esc(p.categoria?.replace('CATEGORÍA ','Cat '))} ${p.grupo ? '· ' + esc(p.grupo) : ''}</div></div>
+          <span class="badge ${p.telefono1 ? 'badge-v' : 'badge-a'}">${p.telefono1 ? 'Con tel.' : 'Sin tel.'}</span>
+        </div>
+        <div id="tel-edit-${p.id}" class="hidden" onclick="event.stopPropagation()">
+          <div style="border-top:1px solid #f0f0ee;margin-top:10px;padding-top:10px">
+            <div class="field" style="max-width:100%;margin-bottom:8px"><label>Teléfono jugadora 1</label><input id="tel1-${p.id}" placeholder="56912345678" value="${esc(p.telefono1||'')}"></div>
+            <div class="field" style="max-width:100%;margin-bottom:8px"><label>Teléfono jugadora 2</label><input id="tel2-${p.id}" placeholder="56912345678" value="${esc(p.telefono2||'')}"></div>
+            <div class="grid2">
+              <button class="btn btn-v" style="margin-top:0" onclick="guardarTel(${p.id})">Guardar</button>
+              <button class="btn btn-o" style="margin-top:0" onclick="document.getElementById('tel-edit-${p.id}').classList.add('hidden')">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+}
+
+function selCat(cat) { aData.catSel = cat; renderAdmin(); }
+
+function editarTel(id) {
+  const el = document.getElementById('tel-edit-' + id);
+  el.classList.toggle('hidden');
+}
+
+async function guardarTel(id) {
+  const t1 = document.getElementById('tel1-' + id).value.trim();
+  const t2 = document.getElementById('tel2-' + id).value.trim();
+  await sb.from('parejas').update({ telefono1: t1, telefono2: t2 }).eq('id', id);
+  await loadAdmin();
+}
+
+async function aprobar(id) {
+  await sb.from('resultados').update({ aprobado: true }).eq('id', id);
+  await loadAdmin();
+}
+
+async function rechazar(id) {
+  if (confirm('¿Segura que quieres rechazar este resultado?')) {
+    await sb.from('resultados').delete().eq('id', id);
+    await loadAdmin();
+  }
+}
+</script>
+</body>
+</html>
